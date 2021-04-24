@@ -5,6 +5,8 @@
                  :props="defaultProps"
                  :expand-on-click-node="false"
                  :default-expanded-keys="defaultExpandedList"
+                 :draggable="true"
+                 :allow-drop="allowDrop"
                  node-key="catId"
                  @node-click="">
               <span class="custom-tree-node" slot-scope="{ node, data }">
@@ -71,7 +73,7 @@ export default {
                 icon: '',
                 productUnit: ''
             },
-            dialogTitle: ''
+            dialogTitle: '',
         }
     },
     mounted() {
@@ -133,20 +135,15 @@ export default {
 
             }
         },
-        // 获取分类信息
-        getCategoryInfo: function (catId) {
-            this.$http({
-                method: 'GET',
-                url: this.$http.adornUrl(`/product/category/info/${catId}`)
-            }).then(({data}) => {
-                if (data && data.code === 0) {
-                    return data;
-                } else {
-                    return null;
-                }
-            }).catch(() => {
-                return null;
-            })
+        // 判断是否允许拖拽
+        allowDrop(draggingNode, dropNode, type) {
+            if(type === 'inner') {
+                console.log("inner", dropNode.level);
+                return dropNode.level < 3;
+            } else {
+                console.log("else", dropNode.level);
+                return dropNode.level <= 3;
+            }
         },
         // 保存分类数据
         addCategory() {
