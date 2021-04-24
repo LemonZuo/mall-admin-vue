@@ -11,7 +11,8 @@
         <span>{{ node.label }}</span>
         <span>
             <!-- 针对一二级分类 -->
-            <el-button type="text" size="mini" v-show="data.catLevel >0 && data.catLevel <=2" @click="() => append(data)">
+            <el-button type="text" size="mini" v-show="data.catLevel >0 && data.catLevel <=2"
+                       @click="() => append(data)">
             新 增
             </el-button>
             <!-- 所有分类 -->
@@ -19,17 +20,24 @@
             修改
             </el-button>
             <!-- 最后一级分类 -->
-            <el-button type="text" size="mini" v-show="data.children == null|| data.children.length === 0" @click="() => remove(node, data)">
+            <el-button type="text" size="mini" v-show="data.children == null|| data.children.length === 0"
+                       @click="() => remove(node, data)">
             删 除
             </el-button>
         </span>
       </span>
         </el-tree>
         <!-- 新增子集分类 -->
-        <el-dialog title="新增商品分类" :visible.sync="dialogFormVisible">
+        <el-dialog :title="dialogTitle" :visible.sync="dialogFormVisible" :close-on-click-modal="false">
             <el-form :model="category">
                 <el-form-item label="分类名称">
                     <el-input v-model="category.name" autocomplete="off"></el-input>
+                </el-form-item>
+                <el-form-item label="分类图标">
+                    <el-input v-model="category.icon" autocomplete="off"></el-input>
+                </el-form-item>
+                <el-form-item label="分类计量单位">
+                    <el-input v-model="category.productUnit" autocomplete="off"></el-input>
                 </el-form-item>
             </el-form>
             <div slot="footer" class="dialog-footer">
@@ -54,13 +62,16 @@ export default {
             dialogFormVisible: false,
             dialogType: '',
             category: {
+                catId: '',
                 name: '',
                 parentCid: '',
                 catLevel: 0,
                 showStatus: 1,
                 sort: 0,
-                catId: ''
-            }
+                icon: '',
+                productUnit: ''
+            },
+            dialogTitle: ''
         }
     },
     mounted() {
@@ -79,20 +90,39 @@ export default {
         append(data) {
             this.dialogFormVisible = true;
             this.dialogType = 'add';
+            this.dialogTitle = '新增商品分类';
+
             this.category.parentCid = data.catId;
             this.category.catLevel = parseInt(data.catLevel) + 1;
+
             this.defaultExpandedList = [data.catId];
         },
-        edit(data) {
+        edit: function (data) {
             this.dialogFormVisible = true;
             this.dialogType = 'edit';
-            this.category.catId = data.catId;
-            this.category.parentCid = data.parentCid;
-            this.category.catLevel = data.catLevel;
-            this.category.name = data.name;
-            this.category.showStatus = data.showStatus;
-            this.category.sort = data.sort;
-            this.defaultExpandedList = [data.catId];
+            this.dialogTitle = '修改商品分类';
+            // 获取最新分类数据
+            this.$http({
+                method: 'GET',
+                url: this.$http.adornUrl(`/product/category/info/${data.catId}`)
+            }).then(({data}) => {
+                if (data && data.code === 0) {
+                    this.category.catId = data.data.catId;
+                    this.category.name = data.data.name;
+                    this.category.catLevel = data.data.catLevel;
+                    this.category.parentCid = data.data.parentCid;
+                    this.category.icon = data.data.icon;
+                    this.category.productUnit = data.data.productUnit;
+                    this.category.showStatus = data.data.showStatus;
+                    this.category.sort = data.data.sort;
+
+                    this.defaultExpandedList = [data.data.catId];
+                } else {
+
+                }
+            }).catch(() => {
+
+            })
         },
         submitData() {
             if (this.dialogType === 'add') {
@@ -103,6 +133,21 @@ export default {
 
             }
         },
+        // 获取分类信息
+        getCategoryInfo: function (catId) {
+            this.$http({
+                method: 'GET',
+                url: this.$http.adornUrl(`/product/category/info/${catId}`)
+            }).then(({data}) => {
+                if (data && data.code === 0) {
+                    return data;
+                } else {
+                    return null;
+                }
+            }).catch(() => {
+                return null;
+            })
+        },
         // 保存分类数据
         addCategory() {
             this.$http({
@@ -112,12 +157,14 @@ export default {
             }).then(({data}) => {
                 this.dialogFormVisible = false;
                 this.category = {
+                    catId: '',
                     name: '',
                     parentCid: '',
                     catLevel: 0,
                     showStatus: 1,
                     sort: 0,
-                    catId: null
+                    icon: '',
+                    productUnit: ''
                 };
                 if (data && data.code === 0) {
                     this.$message({
@@ -136,19 +183,22 @@ export default {
         },
         // 修改数据
         updateCategory() {
+            let {catId, name, icon, productUnit} = this.category;
             this.$http({
                 url: this.$http.adornUrl('/product/category/update'),
                 method: 'post',
-                data: this.$http.adornData(this.category, false)
+                data: this.$http.adornData({catId, name, icon, productUnit}, false)
             }).then(({data}) => {
                 this.dialogFormVisible = false;
                 this.category = {
+                    catId: '',
                     name: '',
                     parentCid: '',
                     catLevel: 0,
                     showStatus: 1,
                     sort: 0,
-                    catId: ''
+                    icon: '',
+                    productUnit: ''
                 };
                 if (data && data.code === 0) {
                     this.$message({
