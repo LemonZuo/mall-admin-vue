@@ -8,7 +8,7 @@
                  :draggable="true"
                  :allow-drop="allowDrop"
                  node-key="catId"
-                 @node-click="">
+                 @node-drop="handleDrop">
               <span class="custom-tree-node" slot-scope="{ node, data }">
         <span>{{ node.label }}</span>
         <span>
@@ -74,6 +74,7 @@ export default {
                 productUnit: ''
             },
             dialogTitle: '',
+            waitUpdateNodes: []
         }
     },
     mounted() {
@@ -137,12 +138,97 @@ export default {
         },
         // 判断是否允许拖拽
         allowDrop(draggingNode, dropNode, type) {
-            if(type === 'inner') {
+            if (type === 'inner') {
                 console.log("inner", dropNode.level);
                 return dropNode.level < 3;
             } else {
                 console.log("else", dropNode.level);
                 return dropNode.level <= 3;
+            }
+        },
+        // 拖拽成功触发事件
+        handleDrop(draggingNode, dropNode, dropType, event) {
+            // 父节点编号
+            let parentCatId = 0;
+            // 当前节点同级元素
+            let siblingNodes = null;
+            if (dropType === 'inner') {
+                parentCatId = dropNode.data.catId;
+                siblingNodes = dropNode.childNodes;
+            } else {
+                parentCatId = dropNode.parent.data.catId === undefined ? parentCatId : dropNode.parent.data.catId;
+                siblingNodes = dropNode.parent.childNodes;
+            }
+            this.defaultExpandedList = [parentCatId];
+            // 对同级元素排序
+            for (let i = 0; i < siblingNodes.length; i++) {
+                if (siblingNodes[i].data.catId === dropNode.data.catId) {
+                    // 当前拖动节点
+
+                    let catLevel = dropNode.level;
+                    if (siblingNodes[i].level !== dropNode.level) {
+                        // 修改当前节点层级
+                        catLevel = siblingNodes[i].level;
+                        // 修改子子节点层级
+                        this.updateChildNodeLevel(siblingNodes[i])
+                        this.waitUpdateNodes.push({
+                            catId: siblingNodes[i].data.catId,
+                            sort: i,
+                            parentCid: parentCatId,
+                            catLevel: catLevel
+                        })
+                    } else {
+                        this.waitUpdateNodes.push({
+                            catId: siblingNodes[i].data.catId,
+                            sort: i,
+                            parentCid: parentCatId
+                        })
+                    }
+                } else {
+                    // 同级节点
+                    this.waitUpdateNodes.push({catId: siblingNodes[i].data.catId, sort: i})
+                }
+            }
+            this.$http({
+                url: this.$http.adornUrl('/product/category/updateSort'),
+                method: 'post',
+                data: this.$http.adornData(this.waitUpdateNodes, false)
+            }).then(({data}) => {
+                // this.category = {
+                //     catId: '',
+                //     name: '',
+                //     parentCid: '',
+                //     catLevel: 0,
+                //     showStatus: 1,
+                //     sort: 0,
+                //     icon: '',
+                //     productUnit: ''
+                // };
+                if (data && data.code === 0) {
+                    this.$message({
+                        message: '操作成功',
+                        type: 'success',
+                        duration: 1500,
+                        onClose: () => {
+                            // 重新获取分类数据
+                            this.getCategoryMenuList();
+                        }
+                    })
+                } else {
+                    this.$message.error(data.msg)
+                }
+            })
+        },
+        updateChildNodeLevel(node) {
+            let childrenNodeList = node.childNodes;
+            if (childrenNodeList.length > 0) {
+                for (let i = 0; i < childrenNodeList.length; i++) {
+                    this.waitUpdateNodes.push({
+                        catId: childrenNodeList[i].data.catId,
+                        catLevel: childrenNodeList[i].level
+                    });
+                    this.updateChildNodeLevel(childrenNodeList[i]);
+                }
             }
         },
         // 保存分类数据
