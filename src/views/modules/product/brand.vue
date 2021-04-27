@@ -38,10 +38,12 @@
                 label="品牌名">
             </el-table-column>
             <el-table-column
-                prop="logo"
                 header-align="center"
                 align="center"
                 label="品牌logo地址">
+                <template slot-scope="scope">
+                    <img style="width: 100px; height: 100px" :src="scope.row.logo" alt="">
+                </template>
             </el-table-column>
             <el-table-column
                 prop="descript"
